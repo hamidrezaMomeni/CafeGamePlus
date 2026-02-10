@@ -866,6 +866,50 @@ const setupThemeToggle = () => {
     });
 };
 
+const setupSidebarToggle = () => {
+    const toggle = document.querySelector("[data-sidebar-toggle]");
+    const backdrop = document.querySelector("[data-sidebar-close]");
+    const sidebar = document.getElementById("sidebar");
+    if (!toggle || !sidebar) return;
+
+    const setOpen = (isOpen) => {
+        document.body.classList.toggle("sidebar-open", isOpen);
+        toggle.setAttribute("aria-expanded", String(isOpen));
+    };
+
+    toggle.addEventListener("click", () => {
+        const isOpen = document.body.classList.contains("sidebar-open");
+        setOpen(!isOpen);
+    });
+
+    if (backdrop) {
+        backdrop.addEventListener("click", () => setOpen(false));
+    }
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") setOpen(false);
+    });
+
+    sidebar.querySelectorAll(".nav__link").forEach((link) => {
+        link.addEventListener("click", () => {
+            if (window.matchMedia("(max-width: 1280px)").matches) {
+                setOpen(false);
+            }
+        });
+    });
+
+    const mediaQuery = window.matchMedia("(max-width: 1280px)");
+    const handleChange = (event) => {
+        if (!event.matches) setOpen(false);
+    };
+
+    if (mediaQuery.addEventListener) {
+        mediaQuery.addEventListener("change", handleChange);
+    } else if (mediaQuery.addListener) {
+        mediaQuery.addListener(handleChange);
+    }
+};
+
 const openModalFromState = () => {
     if (!window.dashboardState) return;
     const {
@@ -909,6 +953,7 @@ const setup = () => {
     setupLiveTimers();
     setupJalaliPickers();
     setupThemeToggle();
+    setupSidebarToggle();
     openModalFromState();
 };
 

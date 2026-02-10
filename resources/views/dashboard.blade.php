@@ -113,138 +113,136 @@
         </div>
     </div>
 
-    <div class="grid-2">
-        <div class="panel">
-            <div class="panel__header">
-                <h3>سشن‌های کنسول</h3>
-                @if ($user?->hasPermission('console_sessions.manage'))
-                    <button class="btn btn--sm" data-modal-open="modal-console-session">شروع سشن</button>
-                @endif
-            </div>
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>کنسول</th>
-                            <th>مشتری</th>
-                            <th>کنترلر</th>
-                            <th>شروع</th>
-                            <th>پایان برنامه‌ریزی</th>
-                            <th>گذشته</th>
-                            <th>وضعیت</th>
-                            <th>اقدام</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @forelse ($consoleSessions as $session)
-                        <tr>
-                            <td data-label="کنسول">{{ $session->console?->name ?? '—' }}</td>
-                            <td data-label="مشتری">{{ $session->customer?->name ?? 'مهمان' }}</td>
-                            <td data-label="کنترلر">{{ $session->controller_count }}</td>
-                            <td data-label="شروع">{{ optional($session->start_time)->format('H:i') }}</td>
-                            <td data-label="پایان برنامه‌ریزی">{{ optional($session->planned_end_time)->format('H:i') ?? '—' }}</td>
-                            <td data-label="گذشته">
-                                @if ($session->status === 'active' && $session->start_time)
-                                    <span class="live-timer" data-elapsed-start-ts="{{ $session->start_time->getTimestamp() }}" data-elapsed-start="{{ $session->start_time->toIso8601String() }}">00:00:00</span>
-                                @elseif ($session->duration_minutes)
-                                    {{ $session->duration_minutes }} دقیقه
-                                @else
-                                    <span class="muted">—</span>
-                                @endif
-                            </td>
-                            <td data-label="وضعیت"><span class="badge badge--{{ $session->status === 'active' ? 'success' : 'muted' }}">{{ $sessionStatusLabels[$session->status] ?? $session->status }}</span></td>
-                            <td data-label="اقدام">
-                                @if ($session->status === 'active' && $user?->hasPermission('console_sessions.manage'))
-                                    <form method="POST" action="{{ route('console-sessions.end', $session) }}" class="inline-form" data-confirm="پایان دادن سشن کنسول؟">
-                                        @csrf
-                                        <button type="submit" class="btn btn--danger btn--sm">پایان</button>
-                                    </form>
-                                @else
-                                    <span class="muted">—</span>
-                                @endif
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="8" class="muted">سشنی ثبت نشده است.</td></tr>
-                    @endforelse
-                    </tbody>
-                </table>
-            </div>
-            <div class="pagination-wrap">
-                {{ $consoleSessions->appends(request()->except('console_sessions_page'))->fragment('sessions')->links() }}
-            </div>
+    <div class="panel">
+        <div class="panel__header">
+            <h3>سشن‌های کنسول</h3>
+            @if ($user?->hasPermission('console_sessions.manage'))
+                <button class="btn btn--sm" data-modal-open="modal-console-session">شروع سشن</button>
+            @endif
         </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>کنسول</th>
+                        <th>مشتری</th>
+                        <th>کنترلر</th>
+                        <th>شروع</th>
+                        <th>پایان برنامه‌ریزی</th>
+                        <th>گذشته</th>
+                        <th>وضعیت</th>
+                        <th>اقدام</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @forelse ($consoleSessions as $session)
+                    <tr>
+                        <td data-label="کنسول">{{ $session->console?->name ?? '—' }}</td>
+                        <td data-label="مشتری">{{ $session->customer?->name ?? 'مهمان' }}</td>
+                        <td data-label="کنترلر">{{ $session->controller_count }}</td>
+                        <td data-label="شروع">{{ optional($session->start_time)->format('H:i') }}</td>
+                        <td data-label="پایان برنامه‌ریزی">{{ optional($session->planned_end_time)->format('H:i') ?? '—' }}</td>
+                        <td data-label="گذشته">
+                            @if ($session->status === 'active' && $session->start_time)
+                                <span class="live-timer" data-elapsed-start-ts="{{ $session->start_time->getTimestamp() }}" data-elapsed-start="{{ $session->start_time->toIso8601String() }}">00:00:00</span>
+                            @elseif ($session->duration_minutes)
+                                {{ $session->duration_minutes }} دقیقه
+                            @else
+                                <span class="muted">—</span>
+                            @endif
+                        </td>
+                        <td data-label="وضعیت"><span class="badge badge--{{ $session->status === 'active' ? 'success' : 'muted' }}">{{ $sessionStatusLabels[$session->status] ?? $session->status }}</span></td>
+                        <td data-label="اقدام">
+                            @if ($session->status === 'active' && $user?->hasPermission('console_sessions.manage'))
+                                <form method="POST" action="{{ route('console-sessions.end', $session) }}" class="inline-form" data-confirm="پایان دادن سشن کنسول؟">
+                                    @csrf
+                                    <button type="submit" class="btn btn--danger btn--sm">پایان</button>
+                                </form>
+                            @else
+                                <span class="muted">—</span>
+                            @endif
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="8" class="muted">سشنی ثبت نشده است.</td></tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
+        <div class="pagination-wrap">
+            {{ $consoleSessions->appends(request()->except('console_sessions_page'))->fragment('sessions')->links() }}
+        </div>
+    </div>
 
-        <div class="panel">
-            <div class="panel__header">
-                <h3>سشن‌های میز</h3>
-                @if ($user?->hasPermission('table_sessions.manage'))
-                    <button class="btn btn--sm" data-modal-open="modal-table-session">شروع سشن</button>
-                @endif
-            </div>
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>میز</th>
-                            <th>مشتری</th>
-                            <th>شروع</th>
-                            <th>پایان برنامه‌ریزی</th>
-                            <th>فاکتور کافه</th>
-                            <th>گذشته</th>
-                            <th>وضعیت</th>
-                            <th>اقدام</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @forelse ($tableSessions as $session)
-                        <tr>
-                            <td data-label="میز">{{ $session->table?->name ?? '—' }}</td>
-                            <td data-label="مشتری">{{ $session->customer?->name ?? 'مهمان' }}</td>
-                            <td data-label="شروع">{{ optional($session->start_time)->format('H:i') }}</td>
-                            <td data-label="پایان برنامه‌ریزی">{{ optional($session->planned_end_time)->format('H:i') ?? '—' }}</td>
-                            <td data-label="فاکتور کافه">
-                                @php
-                                    $pendingCafeOrders = $pendingOrdersByTable->get($session->table_id, collect());
-                                @endphp
-                                @if ($pendingCafeOrders->count())
-                                    <div class="badge badge--warning">
-                                        {{ $pendingCafeOrders->map(fn ($order) => $order->invoice?->invoice_number ?? ('#' . $order->id))->implode('، ') }}
-                                    </div>
-                                @else
-                                    <span class="muted">—</span>
-                                @endif
-                            </td>
-                            <td data-label="گذشته">
-                                @if ($session->status === 'active' && $session->start_time)
-                                    <span class="live-timer" data-elapsed-start-ts="{{ $session->start_time->getTimestamp() }}" data-elapsed-start="{{ $session->start_time->toIso8601String() }}">00:00:00</span>
-                                @elseif ($session->duration_minutes)
-                                    {{ $session->duration_minutes }} دقیقه
-                                @else
-                                    <span class="muted">—</span>
-                                @endif
-                            </td>
-                            <td data-label="وضعیت"><span class="badge badge--{{ $session->status === 'active' ? 'success' : 'muted' }}">{{ $sessionStatusLabels[$session->status] ?? $session->status }}</span></td>
-                            <td data-label="اقدام">
-                                @if ($session->status === 'active' && $user?->hasPermission('table_sessions.manage'))
-                                    <form method="POST" action="{{ route('table-sessions.end', $session) }}" class="inline-form" data-confirm="پایان دادن سشن میز؟">
-                                        @csrf
-                                        <button type="submit" class="btn btn--danger btn--sm">پایان</button>
-                                    </form>
-                                @else
-                                    <span class="muted">—</span>
-                                @endif
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="8" class="muted">سشنی ثبت نشده است.</td></tr>
-                    @endforelse
-                    </tbody>
-                </table>
-            </div>
-            <div class="pagination-wrap">
-                {{ $tableSessions->appends(request()->except('table_sessions_page'))->fragment('sessions')->links() }}
-            </div>
+    <div class="panel panel--spaced">
+        <div class="panel__header">
+            <h3>سشن‌های میز</h3>
+            @if ($user?->hasPermission('table_sessions.manage'))
+                <button class="btn btn--sm" data-modal-open="modal-table-session">شروع سشن</button>
+            @endif
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>میز</th>
+                        <th>مشتری</th>
+                        <th>شروع</th>
+                        <th>پایان برنامه‌ریزی</th>
+                        <th>فاکتور کافه</th>
+                        <th>گذشته</th>
+                        <th>وضعیت</th>
+                        <th>اقدام</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @forelse ($tableSessions as $session)
+                    <tr>
+                        <td data-label="میز">{{ $session->table?->name ?? '—' }}</td>
+                        <td data-label="مشتری">{{ $session->customer?->name ?? 'مهمان' }}</td>
+                        <td data-label="شروع">{{ optional($session->start_time)->format('H:i') }}</td>
+                        <td data-label="پایان برنامه‌ریزی">{{ optional($session->planned_end_time)->format('H:i') ?? '—' }}</td>
+                        <td data-label="فاکتور کافه">
+                            @php
+                                $pendingCafeOrders = $pendingOrdersByTable->get($session->table_id, collect());
+                            @endphp
+                            @if ($pendingCafeOrders->count())
+                                <div class="badge badge--warning">
+                                    {{ $pendingCafeOrders->map(fn ($order) => $order->invoice?->invoice_number ?? ('#' . $order->id))->implode('، ') }}
+                                </div>
+                            @else
+                                <span class="muted">—</span>
+                            @endif
+                        </td>
+                        <td data-label="گذشته">
+                            @if ($session->status === 'active' && $session->start_time)
+                                <span class="live-timer" data-elapsed-start-ts="{{ $session->start_time->getTimestamp() }}" data-elapsed-start="{{ $session->start_time->toIso8601String() }}">00:00:00</span>
+                            @elseif ($session->duration_minutes)
+                                {{ $session->duration_minutes }} دقیقه
+                            @else
+                                <span class="muted">—</span>
+                            @endif
+                        </td>
+                        <td data-label="وضعیت"><span class="badge badge--{{ $session->status === 'active' ? 'success' : 'muted' }}">{{ $sessionStatusLabels[$session->status] ?? $session->status }}</span></td>
+                        <td data-label="اقدام">
+                            @if ($session->status === 'active' && $user?->hasPermission('table_sessions.manage'))
+                                <form method="POST" action="{{ route('table-sessions.end', $session) }}" class="inline-form" data-confirm="پایان دادن سشن میز؟">
+                                    @csrf
+                                    <button type="submit" class="btn btn--danger btn--sm">پایان</button>
+                                </form>
+                            @else
+                                <span class="muted">—</span>
+                            @endif
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="8" class="muted">سشنی ثبت نشده است.</td></tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
+        <div class="pagination-wrap">
+            {{ $tableSessions->appends(request()->except('table_sessions_page'))->fragment('sessions')->links() }}
         </div>
     </div>
 

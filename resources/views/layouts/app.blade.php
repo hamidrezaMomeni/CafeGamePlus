@@ -11,7 +11,7 @@
 </head>
 <body class="app-body">
     <div class="app-shell">
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="brand">
                 <div class="brand__logo">CG+</div>
                 <div>
@@ -39,6 +39,7 @@
             </div>
         </aside>
 
+        <div class="sidebar-backdrop" data-sidebar-close></div>
         <main class="main">
             <header class="topbar">
                 <div>
@@ -46,6 +47,14 @@
                     <h1 class="topbar__title">@yield('page_title', 'مدیریت گیم سنتر')</h1>
                 </div>
                 <div class="topbar__meta">
+                    <button type="button" class="btn btn--ghost btn--sm sidebar-toggle" data-sidebar-toggle aria-controls="sidebar" aria-expanded="false">
+                        <span class="sidebar-toggle__bars" aria-hidden="true">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </span>
+                        <span class="sidebar-toggle__label">منو</span>
+                    </button>
                     <div class="topbar__badge">@jdate(now(), 'Y/m/d')</div>
                     <div class="topbar__badge">@jdate(now(), 'H:i')</div>
                     <button type="button" class="btn btn--ghost btn--sm theme-toggle" data-theme-toggle aria-pressed="false">

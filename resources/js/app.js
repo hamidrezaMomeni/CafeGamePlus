@@ -235,6 +235,33 @@ const setupOrderItems = () => {
     const template = document.getElementById("order-item-template");
     const totalEl = modal.querySelector("[data-order-total]");
 
+    const updateRowStockState = (row) => {
+        const select = row.querySelector("[data-order-item-select]");
+        const qty = row.querySelector("[data-order-item-qty]");
+        const stockInfo = row.querySelector("[data-order-item-stock]");
+        if (!select || !qty) return;
+
+        const selectedOption = select.selectedOptions[0];
+        const stock = parseInt(selectedOption?.dataset.stock ?? "", 10);
+
+        if (Number.isFinite(stock)) {
+            if (stockInfo) {
+                stockInfo.textContent =
+                    stock > 0
+                        ? `موجودی فعلی: ${stock.toLocaleString("fa-IR")} عدد`
+                        : "این آیتم ناموجود است.";
+            }
+            qty.max = String(Math.max(stock, 0));
+            const currentQty = parseInt(qty.value, 10) || 1;
+            if (stock > 0 && currentQty > stock) {
+                qty.value = String(stock);
+            }
+        } else {
+            if (stockInfo) stockInfo.textContent = "";
+            qty.removeAttribute("max");
+        }
+    };
+
     const updateTotal = () => {
         let total = 0;
         list.querySelectorAll("[data-order-item]").forEach((row) => {
@@ -264,7 +291,18 @@ const setupOrderItems = () => {
         if (select && data?.cafe_item_id) select.value = String(data.cafe_item_id);
         if (qty && data?.quantity) qty.value = data.quantity;
 
-        node.addEventListener("change", updateTotal);
+        select?.addEventListener("change", () => {
+            updateRowStockState(node);
+            updateTotal();
+        });
+        qty?.addEventListener("input", () => {
+            const max = parseInt(qty.max ?? "", 10);
+            const current = parseInt(qty.value, 10) || 1;
+            if (Number.isFinite(max) && max > 0 && current > max) {
+                qty.value = String(max);
+            }
+            updateTotal();
+        });
         node.querySelector("[data-remove-order-item]").addEventListener("click", () => {
             node.remove();
             reindex();
@@ -273,6 +311,7 @@ const setupOrderItems = () => {
 
         list.appendChild(node);
         reindex();
+        updateRowStockState(node);
         updateTotal();
     };
 
@@ -866,6 +905,38 @@ const setupThemeToggle = () => {
     });
 };
 
+const setupSensitiveCards = () => {
+    const cards = document.querySelectorAll("[data-sensitive-card]");
+    if (!cards.length) return;
+
+    const applyState = (card, revealed) => {
+        card.classList.toggle("is-revealed", revealed);
+        card.setAttribute("aria-pressed", String(revealed));
+
+        const meta = card.querySelector(".stat-card__meta");
+        if (!meta) return;
+        const showText = card.dataset.sensitiveShowText || meta.textContent || "";
+        const hideText = card.dataset.sensitiveHideText || showText;
+        meta.textContent = revealed ? hideText : showText;
+    };
+
+    cards.forEach((card) => {
+        applyState(card, false);
+
+        card.addEventListener("click", () => {
+            const shouldReveal = !card.classList.contains("is-revealed");
+            applyState(card, shouldReveal);
+        });
+
+        card.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            const shouldReveal = !card.classList.contains("is-revealed");
+            applyState(card, shouldReveal);
+        });
+    });
+};
+
 const setupSidebarToggle = () => {
     const toggle = document.querySelector("[data-sidebar-toggle]");
     const backdrop = document.querySelector("[data-sidebar-close]");
@@ -953,6 +1024,7 @@ const setup = () => {
     setupLiveTimers();
     setupJalaliPickers();
     setupThemeToggle();
+    setupSensitiveCards();
     setupSidebarToggle();
     openModalFromState();
 };

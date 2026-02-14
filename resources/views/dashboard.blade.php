@@ -91,10 +91,11 @@
             <div class="stat-card__value">{{ $stats['total_customers'] }}</div>
             <div class="stat-card__meta">سشن فعال: {{ $stats['active_console_sessions'] + $stats['active_table_sessions'] + $stats['active_board_game_sessions'] }}</div>
         </div>
-        <div class="stat-card stat-card--accent">
+        <div class="stat-card stat-card--accent stat-card--sensitive" data-sensitive-card data-sensitive-show-text="تومان • برای نمایش کلیک کنید" data-sensitive-hide-text="تومان • برای مخفی‌سازی کلیک کنید" role="button" tabindex="0" aria-pressed="false">
             <div class="stat-card__label">درآمد امروز</div>
             <div class="stat-card__value">{{ number_format($stats['today_revenue']) }}</div>
-            <div class="stat-card__meta">تومان</div>
+            <div class="stat-card__meta">تومان • برای نمایش کلیک کنید</div>
+            <div class="stat-card__overlay" aria-hidden="true">برای نمایش مبلغ کلیک کنید</div>
         </div>
     </div>
 </section>
@@ -497,6 +498,7 @@
                     <th>نام آیتم</th>
                     <th>دسته‌بندی</th>
                     <th>قیمت</th>
+                    <th>موجودی</th>
                     <th>وضعیت</th>
                     <th>اقدام</th>
                 </tr>
@@ -507,12 +509,22 @@
                     <td data-label="نام آیتم">{{ $item->name }}</td>
                     <td data-label="دسته‌بندی">{{ $item->category }}</td>
                     <td data-label="قیمت">{{ number_format($item->price) }}</td>
+                    <td data-label="موجودی">
+                        @if ($item->stock_quantity <= 0)
+                            <span class="badge badge--warning">ناموجود</span>
+                        @elseif ($item->stock_quantity <= 5)
+                            <span class="badge badge--warning">{{ number_format($item->stock_quantity) }} عدد (کم)</span>
+                        @else
+                            <span class="badge badge--success">{{ number_format($item->stock_quantity) }} عدد</span>
+                        @endif
+                    </td>
                     <td data-label="وضعیت"><span class="badge badge--{{ $item->is_available ? 'success' : 'muted' }}">{{ $item->is_available ? 'فعال' : 'غیرفعال' }}</span></td>
                     <td data-label="اقدام">
                         <button class="btn btn--sm" data-modal-open="modal-cafe-item" data-edit="1" data-id="{{ $item->id }}" data-fields='{{ json_encode([
                             'name' => $item->name,
                             'category' => $item->category,
                             'price' => $item->price,
+                            'stock_quantity' => $item->stock_quantity,
                             'is_available' => (bool) $item->is_available,
                         ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) }}'>ویرایش</button>
                         <form method="POST" action="{{ route('cafe-items.destroy', $item) }}" class="inline-form" data-confirm="حذف آیتم انجام شود؟">
@@ -523,7 +535,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="5" class="muted">آیتمی ثبت نشده است.</td></tr>
+                <tr><td colspan="6" class="muted">آیتمی ثبت نشده است.</td></tr>
             @endforelse
             </tbody>
         </table>
@@ -1080,6 +1092,10 @@
                     <span>قیمت</span>
                     <input type="number" name="price" min="0" required>
                 </label>
+                <label class="field">
+                    <span>موجودی</span>
+                    <input type="number" name="stock_quantity" min="0" required>
+                </label>
                 <label class="field field--toggle">
                     <span>فعال است؟</span>
                     <input type="checkbox" name="is_available" value="1">
@@ -1604,10 +1620,17 @@
         <label class="field">
             <span>آیتم</span>
             <select data-order-item-select>
+                <option value="">انتخاب آیتم</option>
                 @foreach ($cafeItemsAll as $item)
-                    <option value="{{ $item->id }}" data-price="{{ $item->price }}">{{ $item->name }} ({{ number_format($item->price) }})</option>
+                    <option value="{{ $item->id }}" data-price="{{ $item->price }}" data-stock="{{ $item->stock_quantity }}" @disabled(! $item->is_available || $item->stock_quantity <= 0)>
+                        {{ $item->name }} ({{ number_format($item->price) }}) - موجودی: {{ number_format($item->stock_quantity) }}
+                        @if (! $item->is_available || $item->stock_quantity <= 0)
+                            - ناموجود
+                        @endif
+                    </option>
                 @endforeach
             </select>
+            <div class="muted" data-order-item-stock></div>
         </label>
         <label class="field">
             <span>تعداد</span>

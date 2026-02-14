@@ -25,6 +25,7 @@ class UpdateCafeItemRequest extends FormRequest
             'name' => 'required|string|max:255',
             'category' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
+            'stock_quantity' => 'required|integer|min:0',
             'is_available' => 'boolean',
         ];
     }

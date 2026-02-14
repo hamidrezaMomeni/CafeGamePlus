@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CafeItem;
 use App\Models\Invoice;
 use App\Models\ConsoleSession;
 use App\Models\TableSession;
 use App\Models\BoardGameSession;
 use App\Models\Order;
+use App\Models\OrderItem;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class InvoiceController extends Controller
 {
@@ -28,7 +32,82 @@ class InvoiceController extends Controller
 
     public function markAsPaid(Invoice $invoice): RedirectResponse
     {
-        $invoice->update(['status' => 'paid']);
+        $alreadyPaid = false;
+
+        try {
+            DB::transaction(function () use ($invoice, &$alreadyPaid) {
+                $invoice = Invoice::query()
+                    ->lockForUpdate()
+                    ->findOrFail($invoice->id);
+
+                if ($invoice->status === 'paid') {
+                    $alreadyPaid = true;
+                    return;
+                }
+
+                $requiredStocks = OrderItem::query()
+                    ->join('orders', 'order_items.order_id', '=', 'orders.id')
+                    ->where('orders.invoice_id', $invoice->id)
+                    ->groupBy('order_items.cafe_item_id')
+                    ->selectRaw('order_items.cafe_item_id')
+                    ->selectRaw('COALESCE(SUM(order_items.quantity), 0) as required_quantity')
+                    ->get();
+
+                if ($requiredStocks->isNotEmpty()) {
+                    $cafeItems = CafeItem::query()
+                        ->whereIn('id', $requiredStocks->pluck('cafe_item_id'))
+                        ->lockForUpdate()
+                        ->get()
+                        ->keyBy('id');
+
+                    $insufficientItems = [];
+
+                    foreach ($requiredStocks as $requiredStock) {
+                        $itemId = (int) $requiredStock->cafe_item_id;
+                        $needed = (int) $requiredStock->required_quantity;
+                        $item = $cafeItems->get($itemId);
+                        $available = (int) ($item?->stock_quantity ?? 0);
+
+                        if (! $item || $available < $needed) {
+                            $insufficientItems[] = sprintf(
+                                '%s (موجودی: %s، نیاز: %s)',
+                                $item?->name ?? 'آیتم حذف‌شده',
+                                number_format($available),
+                                number_format($needed)
+                            );
+                        }
+                    }
+
+                    if (! empty($insufficientItems)) {
+                        throw ValidationException::withMessages([
+                            'stock' => 'موجودی برای پرداخت این فاکتور کافی نیست: ' . implode(' | ', $insufficientItems),
+                        ]);
+                    }
+
+                    foreach ($requiredStocks as $requiredStock) {
+                        $item = $cafeItems->get((int) $requiredStock->cafe_item_id);
+                        $item?->decrement('stock_quantity', (int) $requiredStock->required_quantity);
+                    }
+                }
+
+                $invoice->update(['status' => 'paid']);
+
+                Order::query()
+                    ->where('invoice_id', $invoice->id)
+                    ->where('status', 'pending')
+                    ->update(['status' => 'completed']);
+            });
+        } catch (ValidationException $exception) {
+            $error = collect($exception->errors())->flatten()->first();
+
+            return redirect()->route('dashboard')
+                ->with('error', $error ?: 'خطا در بروزرسانی موجودی آیتم‌های کافه.');
+        }
+
+        if ($alreadyPaid) {
+            return redirect()->route('dashboard')
+                ->with('success', 'این فاکتور قبلاً پرداخت شده است.');
+        }
 
         return redirect()->route('dashboard')
             ->with('success', 'فاکتور به عنوان پرداخت شده علامت گذاری شد');

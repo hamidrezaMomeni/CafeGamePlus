@@ -11,6 +11,7 @@ class CafeItem extends Model
         'name',
         'category',
         'price',
+        'stock_quantity',
         'is_available',
         'image_path',
         'description',
@@ -18,6 +19,7 @@ class CafeItem extends Model
 
     protected $casts = [
         'price'        => 'integer',
+        'stock_quantity' => 'integer',
         'is_available' => 'boolean',
     ];
 

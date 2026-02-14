@@ -28,6 +28,7 @@
     @endif
     @if (auth()->user()?->hasPermission('invoices.manage'))
         <a href="#invoices" class="nav__link">فاکتورها</a>
+        <a href="{{ route('accounting-stats.index') }}" class="nav__link">آمار حسابداری</a>
     @endif
     @if (auth()->user()?->hasPermission('pricing_plans.manage'))
         <a href="#pricing-plans" class="nav__link">طرح‌های قیمتی</a>

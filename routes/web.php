@@ -15,6 +15,7 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SystemController;
 use App\Http\Controllers\PricingPlanController;
+use App\Http\Controllers\AccountingStatsController;
 use App\Http\Controllers\Auth\LoginController;
 
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
@@ -83,6 +84,10 @@ Route::middleware('auth')->group(function () {
     Route::resource('pricing-plans', PricingPlanController::class)
         ->except(['show'])
         ->middleware('permission:pricing_plans.manage');
+
+    Route::get('accounting-stats', [AccountingStatsController::class, 'index'])
+        ->name('accounting-stats.index')
+        ->middleware('permission:invoices.manage');
 
     Route::post('system/tick', [SystemController::class, 'tick'])
         ->name('system.tick');

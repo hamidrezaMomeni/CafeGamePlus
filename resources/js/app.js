@@ -496,9 +496,14 @@ const setupLiveTimers = () => {
     if (!items.length) return;
 
     const pad = (num) => String(num).padStart(2, "0");
+    const serverNowEl = document.querySelector("[data-server-now-ts]");
+    const serverNowTs = serverNowEl ? parseInt(serverNowEl.dataset.serverNowTs, 10) : NaN;
+    const clientStartMs = Date.now();
+    const serverNowMs = Number.isNaN(serverNowTs) ? null : serverNowTs * 1000;
+    const clockSkewMs = serverNowMs === null ? 0 : serverNowMs - clientStartMs;
 
     const update = () => {
-        const now = Date.now();
+        const now = Date.now() + clockSkewMs;
         items.forEach((el) => {
             const startTs = el.dataset.elapsedStartTs;
             const startIso = el.dataset.elapsedStart;

@@ -33,11 +33,19 @@ class JalaliDate
 
         $value = trim($value);
         $value = str_replace('/', '-', $value);
-
         if ($withTime && preg_match('/^\d{1,2}:\d{2}(?::\d{2})?$/', $value)) {
-            $todayJalali = Jalalian::fromCarbon(Carbon::now())->format('Y-m-d');
-            $datePart = $todayJalali;
-            $timePart = $value;
+            $timeParts = array_map('intval', explode(':', $value));
+            $hour = $timeParts[0] ?? 0;
+            $minute = $timeParts[1] ?? 0;
+            $second = $timeParts[2] ?? 0;
+
+            $now = Carbon::now();
+            $carbon = $now->copy()->setTime($hour, $minute, $second);
+            if ($carbon->greaterThan($now)) {
+                $carbon->subDay();
+            }
+
+            return $carbon;
         } else {
         $pattern = $withTime
             ? '/^\d{4}-\d{1,2}-\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?$/'

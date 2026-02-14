@@ -33,12 +33,13 @@ class SessionEndService
 
         return DB::transaction(function () use ($consoleSession, $endTime) {
             $endTime = $endTime->copy();
+            $startTime = $this->resolveStartTime($consoleSession->start_time, $endTime);
 
-            $duration = $consoleSession->start_time->diffInMinutes($endTime);
+            $duration = $startTime->diffInMinutes($endTime);
             $adjustments = $this->pricingPlanService->adjustmentsForSession(
                 'console',
                 $consoleSession->customer,
-                $consoleSession->start_time,
+                $startTime,
                 $endTime,
                 $duration
             );
@@ -55,6 +56,7 @@ class SessionEndService
             $price = $this->applyDiscountPercent($price, (int) ($adjustments['discount_percent'] ?? 0));
             $price = $this->applyDiscountPercent($price, $consoleSession->discount_percent);
 
+            $consoleSession->start_time = $startTime;
             $consoleSession->end_time = $endTime;
             $consoleSession->duration_minutes = $duration;
             $consoleSession->total_price = $price;
@@ -100,12 +102,13 @@ class SessionEndService
 
         return DB::transaction(function () use ($tableSession, $endTime) {
             $endTime = $endTime->copy();
+            $startTime = $this->resolveStartTime($tableSession->start_time, $endTime);
 
-            $duration = $tableSession->start_time->diffInMinutes($endTime);
+            $duration = $startTime->diffInMinutes($endTime);
             $adjustments = $this->pricingPlanService->adjustmentsForSession(
                 'table',
                 $tableSession->customer,
-                $tableSession->start_time,
+                $startTime,
                 $endTime,
                 $duration
             );
@@ -121,6 +124,7 @@ class SessionEndService
             $price = $this->applyDiscountPercent($price, (int) ($adjustments['discount_percent'] ?? 0));
             $price = $this->applyDiscountPercent($price, $tableSession->discount_percent);
 
+            $tableSession->start_time = $startTime;
             $tableSession->end_time = $endTime;
             $tableSession->duration_minutes = $duration;
             $tableSession->total_price = $price;
@@ -166,12 +170,13 @@ class SessionEndService
 
         return DB::transaction(function () use ($boardGameSession, $endTime) {
             $endTime = $endTime->copy();
+            $startTime = $this->resolveStartTime($boardGameSession->start_time, $endTime);
 
-            $duration = $boardGameSession->start_time->diffInMinutes($endTime);
+            $duration = $startTime->diffInMinutes($endTime);
             $adjustments = $this->pricingPlanService->adjustmentsForSession(
                 'board_game',
                 $boardGameSession->customer,
-                $boardGameSession->start_time,
+                $startTime,
                 $endTime,
                 $duration
             );
@@ -187,6 +192,7 @@ class SessionEndService
             $price = $this->applyDiscountPercent($price, (int) ($adjustments['discount_percent'] ?? 0));
             $price = $this->applyDiscountPercent($price, $boardGameSession->discount_percent);
 
+            $boardGameSession->start_time = $startTime;
             $boardGameSession->end_time = $endTime;
             $boardGameSession->duration_minutes = $duration;
             $boardGameSession->total_price = $price;
@@ -228,5 +234,19 @@ class SessionEndService
         }
 
         return round($price * (1 - ($discountPercent / 100)), 2);
+    }
+
+    protected function resolveStartTime(Carbon $startTime, Carbon $endTime): Carbon
+    {
+        if ($startTime->lessThanOrEqualTo($endTime)) {
+            return $startTime;
+        }
+
+        $candidate = $endTime->copy()->setTimeFromTimeString($startTime->format('H:i:s'));
+        if ($candidate->greaterThan($endTime)) {
+            $candidate->subDay();
+        }
+
+        return $candidate;
     }
 }

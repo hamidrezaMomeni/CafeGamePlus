@@ -46,6 +46,23 @@
     $consoleTypes = ['PS4' => 'PS4', 'PS5' => 'PS5', 'XBOX' => 'Xbox', 'PC' => 'PC', 'Other' => 'سایر'];
     $sessionStatusLabels = ['active' => 'فعال', 'completed' => 'پایان یافته'];
     $invoiceStatusLabels = ['pending' => 'در انتظار پرداخت', 'paid' => 'پرداخت شده'];
+    $resolveSessionStart = function ($startTime) {
+        if (! $startTime) {
+            return null;
+        }
+
+        $now = now($startTime->getTimezone());
+
+        if ($startTime->greaterThan($now)) {
+            $candidate = $now->copy()->setTimeFromTimeString($startTime->format('H:i:s'));
+            if ($candidate->greaterThan($now)) {
+                $candidate->subDay();
+            }
+            return $candidate;
+        }
+
+        return $startTime;
+    };
 @endphp
 
 <section id="overview" class="section">
@@ -101,7 +118,7 @@
 </section>
 
 @if ($user?->hasPermission('console_sessions.manage') || $user?->hasPermission('table_sessions.manage') || $user?->hasPermission('board_game_sessions.manage'))
-<section id="sessions" class="section">
+<section id="sessions" class="section" data-server-now-ts="{{ now()->getTimestamp() }}">
     <div class="section__header">
         <div>
             <h2>سشن‌ها</h2>
@@ -138,15 +155,16 @@
                 </thead>
                 <tbody>
                 @forelse ($consoleSessions as $session)
+                    @php $effectiveStart = $resolveSessionStart($session->start_time); @endphp
                     <tr>
                         <td data-label="کنسول">{{ $session->console?->name ?? '—' }}</td>
                         <td data-label="مشتری">{{ $session->customer?->name ?? 'مهمان' }}</td>
                         <td data-label="کنترلر">{{ $session->controller_count }}</td>
-                        <td data-label="شروع">{{ optional($session->start_time)->format('H:i') }}</td>
+                        <td data-label="شروع">{{ optional($effectiveStart)->format('H:i') }}</td>
                         <td data-label="پایان برنامه‌ریزی">{{ optional($session->planned_end_time)->format('H:i') ?? '—' }}</td>
                         <td data-label="گذشته">
-                            @if ($session->status === 'active' && $session->start_time)
-                                <span class="live-timer" data-elapsed-start-ts="{{ $session->start_time->getTimestamp() }}" data-elapsed-start="{{ $session->start_time->toIso8601String() }}">00:00:00</span>
+                            @if ($session->status === 'active' && $effectiveStart)
+                                <span class="live-timer" data-elapsed-start-ts="{{ $effectiveStart->getTimestamp() }}" data-elapsed-start="{{ $effectiveStart->toIso8601String() }}">00:00:00</span>
                             @elseif ($session->duration_minutes)
                                 {{ $session->duration_minutes }} دقیقه
                             @else
@@ -199,10 +217,11 @@
                 </thead>
                 <tbody>
                 @forelse ($tableSessions as $session)
+                    @php $effectiveStart = $resolveSessionStart($session->start_time); @endphp
                     <tr>
                         <td data-label="میز">{{ $session->table?->name ?? '—' }}</td>
                         <td data-label="مشتری">{{ $session->customer?->name ?? 'مهمان' }}</td>
-                        <td data-label="شروع">{{ optional($session->start_time)->format('H:i') }}</td>
+                        <td data-label="شروع">{{ optional($effectiveStart)->format('H:i') }}</td>
                         <td data-label="پایان برنامه‌ریزی">{{ optional($session->planned_end_time)->format('H:i') ?? '—' }}</td>
                         <td data-label="فاکتور کافه">
                             @php
@@ -217,8 +236,8 @@
                             @endif
                         </td>
                         <td data-label="گذشته">
-                            @if ($session->status === 'active' && $session->start_time)
-                                <span class="live-timer" data-elapsed-start-ts="{{ $session->start_time->getTimestamp() }}" data-elapsed-start="{{ $session->start_time->toIso8601String() }}">00:00:00</span>
+                            @if ($session->status === 'active' && $effectiveStart)
+                                <span class="live-timer" data-elapsed-start-ts="{{ $effectiveStart->getTimestamp() }}" data-elapsed-start="{{ $effectiveStart->toIso8601String() }}">00:00:00</span>
                             @elseif ($session->duration_minutes)
                                 {{ $session->duration_minutes }} دقیقه
                             @else
@@ -270,14 +289,15 @@
                 </thead>
                 <tbody>
                 @forelse ($boardGameSessions as $session)
+                    @php $effectiveStart = $resolveSessionStart($session->start_time); @endphp
                     <tr>
                         <td data-label="بردگیم">{{ $session->boardGame?->name ?? '—' }}</td>
                         <td data-label="مشتری">{{ $session->customer?->name ?? 'مهمان' }}</td>
-                        <td data-label="شروع">{{ optional($session->start_time)->format('H:i') }}</td>
+                        <td data-label="شروع">{{ optional($effectiveStart)->format('H:i') }}</td>
                         <td data-label="پایان برنامه‌ریزی">{{ optional($session->planned_end_time)->format('H:i') ?? '—' }}</td>
                         <td data-label="گذشته">
-                            @if ($session->status === 'active' && $session->start_time)
-                                <span class="live-timer" data-elapsed-start-ts="{{ $session->start_time->getTimestamp() }}" data-elapsed-start="{{ $session->start_time->toIso8601String() }}">00:00:00</span>
+                            @if ($session->status === 'active' && $effectiveStart)
+                                <span class="live-timer" data-elapsed-start-ts="{{ $effectiveStart->getTimestamp() }}" data-elapsed-start="{{ $effectiveStart->toIso8601String() }}">00:00:00</span>
                             @elseif ($session->duration_minutes)
                                 {{ $session->duration_minutes }} دقیقه
                             @else
@@ -1325,8 +1345,9 @@
                         @if ($activeSessions->count())
                             <optgroup label="سشن‌های کنسول">
                                 @foreach ($activeSessions as $session)
+                                    @php $effectiveStart = $resolveSessionStart($session->start_time); @endphp
                                     <option value="console:{{ $session->id }}" data-customer-id="{{ $session->customer_id ?? '' }}">
-                                        کنسول {{ $session->console?->name ?? '—' }} — {{ $session->customer?->name ?? 'مهمان' }} — شروع {{ optional($session->start_time)->format('H:i') }}
+                                        کنسول {{ $session->console?->name ?? '—' }} — {{ $session->customer?->name ?? 'مهمان' }} — شروع {{ optional($effectiveStart)->format('H:i') }}
                                         @if ($session->invoice?->invoice_number)
                                             — فاکتور {{ $session->invoice->invoice_number }}
                                         @endif
@@ -1337,8 +1358,9 @@
                         @if ($activeTableSessions->count())
                             <optgroup label="سشن‌های میز">
                                 @foreach ($activeTableSessions as $session)
+                                    @php $effectiveStart = $resolveSessionStart($session->start_time); @endphp
                                     <option value="table:{{ $session->id }}" data-customer-id="{{ $session->customer_id ?? '' }}" data-table-id="{{ $session->table_id }}">
-                                        میز {{ $session->table?->name ?? '—' }} — {{ $session->customer?->name ?? 'مهمان' }} — شروع {{ optional($session->start_time)->format('H:i') }}
+                                        میز {{ $session->table?->name ?? '—' }} — {{ $session->customer?->name ?? 'مهمان' }} — شروع {{ optional($effectiveStart)->format('H:i') }}
                                         @if ($session->invoice?->invoice_number)
                                             — فاکتور {{ $session->invoice->invoice_number }}
                                         @endif
@@ -1349,8 +1371,9 @@
                         @if ($activeBoardGameSessions->count())
                             <optgroup label="سشن‌های بردگیم">
                                 @foreach ($activeBoardGameSessions as $session)
+                                    @php $effectiveStart = $resolveSessionStart($session->start_time); @endphp
                                     <option value="board_game:{{ $session->id }}" data-customer-id="{{ $session->customer_id ?? '' }}">
-                                        بردگیم {{ $session->boardGame?->name ?? '—' }} — {{ $session->customer?->name ?? 'مهمان' }} — شروع {{ optional($session->start_time)->format('H:i') }}
+                                        بردگیم {{ $session->boardGame?->name ?? '—' }} — {{ $session->customer?->name ?? 'مهمان' }} — شروع {{ optional($effectiveStart)->format('H:i') }}
                                         @if ($session->invoice?->invoice_number)
                                             — فاکتور {{ $session->invoice->invoice_number }}
                                         @endif

@@ -1173,7 +1173,7 @@
                 </label>
                 <label class="field">
                     <span>زمان شروع (اختیاری)</span>
-                    <input type="text" name="start_time" placeholder="1403-01-15 18:30 یا 18:30" data-jalali-picker="datetime">
+                    <input type="text" name="start_time" placeholder="1403-01-15 18:30 یا 18:30" data-jalali-picker="datetime" autocomplete="off">
                 </label>
                 <label class="field">
                     <span>مدت برنامه‌ریزی (دقیقه)</span>
@@ -1222,7 +1222,7 @@
                 </label>
                 <label class="field">
                     <span>زمان شروع (اختیاری)</span>
-                    <input type="text" name="start_time" placeholder="1403-01-15 18:30 یا 18:30" data-jalali-picker="datetime">
+                    <input type="text" name="start_time" placeholder="1403-01-15 18:30 یا 18:30" data-jalali-picker="datetime" autocomplete="off">
                 </label>
                 <label class="field">
                     <span>مدت برنامه‌ریزی (دقیقه)</span>
@@ -1271,7 +1271,7 @@
                 </label>
                 <label class="field">
                     <span>زمان شروع (اختیاری)</span>
-                    <input type="text" name="start_time" placeholder="1403-01-15 18:30 یا 18:30" data-jalali-picker="datetime">
+                    <input type="text" name="start_time" placeholder="1403-01-15 18:30 یا 18:30" data-jalali-picker="datetime" autocomplete="off">
                 </label>
                 <label class="field">
                     <span>مدت برنامه‌ریزی (دقیقه)</span>

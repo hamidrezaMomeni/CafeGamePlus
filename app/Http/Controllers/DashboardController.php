@@ -11,15 +11,17 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\PricingPlan;
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\Table;
 use App\Models\TableSession;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
         $stats = [
             'total_consoles' => Console::count(),
@@ -43,7 +45,11 @@ class DashboardController extends Controller
         $consoles = Console::query()->latest()->paginate(10, ['*'], 'consoles_page');
         $tables = Table::query()->latest()->paginate(10, ['*'], 'tables_page');
         $boardGames = BoardGame::query()->latest()->paginate(10, ['*'], 'board_games_page');
-        $customers = Customer::withCount('invoices')->latest()->paginate(10, ['*'], 'customers_page');
+        $customerSearch = trim((string) $request->query('customer_search', ''));
+        $customers = Customer::withCount('invoices')
+            ->search($customerSearch)
+            ->latest()
+            ->paginate(10, ['*'], 'customers_page');
         $cafeItems = CafeItem::query()->latest()->paginate(10, ['*'], 'cafe_items_page');
         $orders = Order::with(['items.cafeItem', 'customer', 'table', 'invoice'])
             ->latest()
@@ -67,6 +73,7 @@ class DashboardController extends Controller
         $pricingPlanTypes = PricingPlan::availableTypes();
         $pricingPlanAppliesTo = PricingPlan::availableAppliesTo();
         $permissions = User::availablePermissions();
+        $defaultCreditLimit = Setting::defaultCreditLimit();
         $consolesAll = Console::all();
         $tablesAll = Table::all();
         $boardGamesAll = BoardGame::all();
@@ -106,6 +113,7 @@ class DashboardController extends Controller
             'tables',
             'boardGames',
             'customers',
+            'customerSearch',
             'cafeItems',
             'orders',
             'invoices',
@@ -114,6 +122,7 @@ class DashboardController extends Controller
             'pricingPlanTypes',
             'pricingPlanAppliesTo',
             'permissions',
+            'defaultCreditLimit',
             'consolesAll',
             'tablesAll',
             'boardGamesAll',

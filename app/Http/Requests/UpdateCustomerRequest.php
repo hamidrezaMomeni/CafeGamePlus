@@ -40,6 +40,24 @@ class UpdateCustomerRequest extends FormRequest
             ],
 
             'email' => ['nullable', 'email'],
+
+            // خالی = استفاده از سقف اعتبار پیش‌فرض سیستم
+            'credit_limit' => ['nullable', 'integer', 'min:0', 'max:100000000000'],
+        ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'credit_limit' => 'سقف اعتبار',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'credit_limit.integer' => 'سقف اعتبار باید یک عدد صحیح (به تومان) باشد.',
+            'credit_limit.min' => 'سقف اعتبار نمی‌تواند منفی باشد.',
         ];
     }
 }

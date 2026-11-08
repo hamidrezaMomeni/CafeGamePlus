@@ -13,6 +13,7 @@ class Invoice extends Model
         'invoice_number',
         'total_amount',
         'status',
+        'payment_method',
     ];
 
     public function customer(): BelongsTo
@@ -33,6 +34,11 @@ class Invoice extends Model
     public function boardGameSessions(): HasMany
     {
         return $this->hasMany(BoardGameSession::class);
+    }
+
+    public function walletTransactions(): HasMany
+    {
+        return $this->hasMany(WalletTransaction::class);
     }
 
     public function orders(): HasMany

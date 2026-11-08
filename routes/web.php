@@ -13,6 +13,7 @@ use App\Http\Controllers\BoardGameSessionController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\WalletController;
 use App\Http\Controllers\SystemController;
 use App\Http\Controllers\PricingPlanController;
 use App\Http\Controllers\AccountingStatsController;
@@ -34,7 +35,19 @@ Route::middleware('auth')->group(function () {
     Route::resource('board-games', BoardGameController::class)
         ->except(['show'])
         ->middleware('permission:board_games.manage');
+    Route::get('customers/search', [CustomerController::class, 'search'])
+        ->name('customers.search')
+        ->middleware('permission:customers.manage');
     Route::resource('customers', CustomerController::class)->middleware('permission:customers.manage');
+    Route::get('customers/{customer}/wallet', [WalletController::class, 'show'])
+        ->name('customers.wallet')
+        ->middleware('permission:customers.manage');
+    Route::post('customers/{customer}/wallet/charge', [WalletController::class, 'charge'])
+        ->name('customers.wallet.charge')
+        ->middleware('permission:customers.manage');
+    Route::put('settings/credit-limit', [WalletController::class, 'updateDefaultCreditLimit'])
+        ->name('settings.credit-limit.update')
+        ->middleware('permission:customers.manage');
     Route::resource('cafe-items', CafeItemController::class)
         ->except(['show'])
         ->middleware('permission:cafe_items.manage');
@@ -72,6 +85,9 @@ Route::middleware('auth')->group(function () {
         ->middleware('permission:invoices.manage');
     Route::post('invoices/{invoice}/mark-as-paid', [InvoiceController::class, 'markAsPaid'])
         ->name('invoices.mark-as-paid')
+        ->middleware('permission:invoices.manage');
+    Route::post('invoices/{invoice}/pay-with-wallet', [InvoiceController::class, 'payWithWallet'])
+        ->name('invoices.pay-with-wallet')
         ->middleware('permission:invoices.manage');
     Route::delete('invoices/{invoice}', [InvoiceController::class, 'destroy'])
         ->name('invoices.destroy')

@@ -575,8 +575,14 @@
         </div>
     <div class="section__actions">
         <button class="btn btn--primary" data-modal-open="modal-customer">ثبت مشتری</button>
+        <button class="btn btn--ghost" data-modal-open="modal-credit-settings">تنظیم سقف اعتبار</button>
     </div>
     </div>
+    <label class="field customer-search">
+        <span>جستجوی مشتری</span>
+        <input type="search" id="customerSearch" value="{{ $customerSearch }}" placeholder="نام، شماره موبایل یا کد ملی..." autocomplete="off">
+        <small class="muted" id="customerSearchStatus" aria-live="polite"></small>
+    </label>
     <div class="table-wrap">
         <table class="data-table">
             <thead>
@@ -588,40 +594,17 @@
                     <th>مبلغ کل</th>
                     <th>تعداد مراجعه</th>
                     <th>فاکتور</th>
+                    <th>کیف پول (تومان)</th>
+                    <th>سقف اعتبار (تومان)</th>
                     <th>اقدام</th>
                 </tr>
             </thead>
-            <tbody>
-            @forelse ($customers as $customer)
-                <tr>
-                    <td data-label="نام">{{ $customer->name }}</td>
-                    <td data-label="شماره تماس">{{ $customer->phone }}</td>
-                    <td data-label="کد ملی">{{ $customer->national_id }}</td>
-                    <td data-label="ایمیل">{{ $customer->email ?? '—' }}</td>
-                    <td data-label="مبلغ کل">{{ number_format($customer->total_spend) }}</td>
-                    <td data-label="تعداد مراجعه">{{ $customer->visit_count }}</td>
-                    <td data-label="فاکتور">{{ $customer->invoices_count }}</td>
-                    <td data-label="اقدام">
-                        <button class="btn btn--sm" data-modal-open="modal-customer" data-edit="1" data-id="{{ $customer->id }}" data-fields='{{ json_encode([
-                            'name' => $customer->name,
-                            'phone' => $customer->phone,
-                            'national_id' => $customer->national_id,
-                            'email' => $customer->email,
-                        ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) }}'>ویرایش</button>
-                        <form method="POST" action="{{ route('customers.destroy', $customer) }}" class="inline-form" data-confirm="حذف مشتری انجام شود؟">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn btn--danger btn--sm">حذف</button>
-                        </form>
-                    </td>
-                </tr>
-            @empty
-                <tr><td colspan="8" class="muted">مشتری ثبت نشده است.</td></tr>
-            @endforelse
+            <tbody id="customersTableBody">
+            @include('customers._rows', ['customers' => $customers, 'search' => $customerSearch])
             </tbody>
         </table>
     </div>
-    <div class="pagination-wrap">
+    <div class="pagination-wrap" id="customersPagination">
         {{ $customers->appends(request()->except('customers_page'))->fragment('customers')->links() }}
     </div>
 </section>
@@ -719,7 +702,12 @@
                     <td data-label="شماره فاکتور">{{ $invoice->invoice_number }}</td>
                     <td data-label="مشتری">{{ $invoice->customer?->name ?? 'مهمان' }}</td>
                     <td data-label="مبلغ کل">{{ number_format($invoice->total_amount) }}</td>
-                    <td data-label="وضعیت"><span class="badge badge--{{ $invoice->status === 'paid' ? 'success' : 'warning' }}">{{ $invoiceStatusLabels[$invoice->status] ?? $invoice->status }}</span></td>
+                    <td data-label="وضعیت">
+                        <span class="badge badge--{{ $invoice->status === 'paid' ? 'success' : 'warning' }}">{{ $invoiceStatusLabels[$invoice->status] ?? $invoice->status }}</span>
+                        @if ($invoice->status === 'paid' && $invoice->payment_method === 'wallet')
+                            <span class="muted">(کیف پول)</span>
+                        @endif
+                    </td>
                     <td data-label="آیتم‌ها">{{ $invoice->consoleSessions->count() + $invoice->tableSessions->count() + $invoice->boardGameSessions->count() + $invoice->orders->count() }}</td>
                     <td data-label="ثبت">@jdate($invoice->created_at, 'Y/m/d H:i')</td>
                     <td data-label="اقدام">
@@ -767,6 +755,12 @@
                                 @csrf
                                 <button type="submit" class="btn btn--success btn--sm">پرداخت شد</button>
                             </form>
+                            @if ($invoice->customer)
+                                <form method="POST" action="{{ route('invoices.pay-with-wallet', $invoice) }}" class="inline-form" data-confirm="مبلغ {{ number_format($invoice->total_amount) }} تومان از کیف پول {{ $invoice->customer->name }} کسر شود؟ (موجودی فعلی: {{ number_format($invoice->customer->wallet_balance) }} تومان | سقف اعتبار: {{ number_format($invoice->customer->effective_credit_limit) }} تومان)">
+                                    @csrf
+                                    <button type="submit" class="btn btn--sm">پرداخت از کیف پول</button>
+                                </form>
+                            @endif
                         @endif
                         @if ($user?->hasPermission('invoices.delete'))
                             <form method="POST" action="{{ route('invoices.destroy', $invoice) }}" class="inline-form" data-confirm="حذف فاکتور انجام شود؟">
@@ -1161,10 +1155,72 @@
                     <span>ایمیل (اختیاری)</span>
                     <input type="email" name="email">
                 </label>
+                <label class="field">
+                    <span>سقف اعتبار اختصاصی (تومان)</span>
+                    <input type="number" name="credit_limit" min="0" step="1" inputmode="numeric" placeholder="خالی = پیش‌فرض سیستم ({{ number_format($defaultCreditLimit) }})">
+                    <small class="muted">سقف بدهکاری مجاز این مشتری هنگام پرداخت از کیف پول. اگر خالی بماند، سقف پیش‌فرض سیستم اعمال می‌شود؛ عدد ۰ یعنی این مشتری اعتبار ندارد.</small>
+                </label>
             </div>
 
             <div class="modal__footer">
                 <button type="submit" class="btn btn--primary">ذخیره</button>
+                <button type="button" class="btn btn--ghost" data-modal-close>انصراف</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="modal-credit-settings" aria-hidden="true">
+    <div class="modal__backdrop" data-modal-close></div>
+    <div class="modal__dialog">
+        <div class="modal__header">
+            <h3>تنظیم سقف اعتبار پیش‌فرض</h3>
+            <button class="modal__close" type="button" data-modal-close>×</button>
+        </div>
+        <form method="POST" action="{{ route('settings.credit-limit.update') }}">
+            @csrf
+            @method('PUT')
+            <div class="form-grid">
+                <label class="field">
+                    <span>سقف اعتبار پیش‌فرض (تومان)</span>
+                    <input type="number" name="default_credit_limit" min="0" step="1" inputmode="numeric" value="{{ (int) $defaultCreditLimit }}" required>
+                    <small class="muted">حداکثر بدهی‌ای که یک مشتری می‌تواند هنگام پرداخت فاکتور از کیف پول داشته باشد. این مقدار برای همهٔ مشتریانی که سقف اختصاصی ندارند اعمال می‌شود. برای غیرفعال کردن اعتبار، ۰ وارد کنید. سقف اختصاصی هر مشتری را از دکمهٔ «ویرایش» همان مشتری تنظیم کنید.</small>
+                </label>
+            </div>
+            <div class="modal__footer">
+                <button type="submit" class="btn btn--primary">ذخیره</button>
+                <button type="button" class="btn btn--ghost" data-modal-close>انصراف</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="modal-wallet-charge" aria-hidden="true">
+    <div class="modal__backdrop" data-modal-close></div>
+    <div class="modal__dialog">
+        <div class="modal__header">
+            <h3>شارژ دستی کیف پول</h3>
+            <button class="modal__close" type="button" data-modal-close>×</button>
+        </div>
+        <form method="POST" action="#" data-form="wallet-charge" data-update-template="{{ route('customers.wallet.charge', ['customer' => '__ID__']) }}">
+            @csrf
+            <div class="form-grid">
+                <label class="field">
+                    <span>مشتری</span>
+                    <input type="text" name="customer_name" readonly>
+                </label>
+                <label class="field">
+                    <span>مبلغ شارژ (تومان)</span>
+                    <input type="number" name="amount" min="1" step="1" inputmode="numeric" required>
+                    <small class="muted">اگر مشتری بدهکار باشد، مبلغ شارژ ابتدا صرف تسویهٔ بدهی او می‌شود.</small>
+                </label>
+                <label class="field">
+                    <span>توضیحات (اختیاری)</span>
+                    <input type="text" name="description" maxlength="255" placeholder="مثلاً: واریز نقدی / کارت‌به‌کارت">
+                </label>
+            </div>
+            <div class="modal__footer">
+                <button type="submit" class="btn btn--primary">شارژ کیف پول</button>
                 <button type="button" class="btn btn--ghost" data-modal-close>انصراف</button>
             </div>
         </form>
@@ -1662,6 +1718,46 @@
         <button type="button" class="btn btn--danger btn--sm" data-remove-order-item>حذف</button>
     </div>
 </template>
+
+@if ($user?->hasPermission('customers.manage'))
+<script>
+    (function () {
+        const input = document.getElementById('customerSearch');
+        if (!input) return;
+        const body = document.getElementById('customersTableBody');
+        const pagination = document.getElementById('customersPagination');
+        const status = document.getElementById('customerSearchStatus');
+        const url = @json(route('customers.search'));
+        let timer = null;
+        let controller = null;
+
+        const run = async () => {
+            if (controller) controller.abort();
+            controller = new AbortController();
+            status.textContent = 'در حال جستجو...';
+            try {
+                const response = await fetch(url + '?q=' + encodeURIComponent(input.value.trim()), {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    signal: controller.signal,
+                });
+                if (!response.ok) throw new Error('bad status');
+                const data = await response.json();
+                body.innerHTML = data.rows;
+                pagination.innerHTML = data.pagination;
+                status.textContent = input.value.trim() ? `${data.total} مشتری یافت شد` : '';
+            } catch (error) {
+                if (error.name === 'AbortError') return;
+                status.textContent = 'خطا در جستجو. دوباره تلاش کنید یا صفحه را رفرش کنید.';
+            }
+        };
+
+        input.addEventListener('input', () => {
+            clearTimeout(timer);
+            timer = setTimeout(run, 300);
+        });
+    })();
+</script>
+@endif
 
 <script>
     window.dashboardState = {

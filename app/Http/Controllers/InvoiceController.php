@@ -9,12 +9,17 @@ use App\Models\TableSession;
 use App\Models\BoardGameSession;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Services\WalletService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class InvoiceController extends Controller
 {
+    public function __construct(protected WalletService $walletService)
+    {
+    }
+
     public function index(): RedirectResponse
     {
         return redirect()->route('dashboard');
@@ -32,10 +37,24 @@ class InvoiceController extends Controller
 
     public function markAsPaid(Invoice $invoice): RedirectResponse
     {
+        return $this->settleInvoice($invoice, 'manual');
+    }
+
+    public function payWithWallet(Invoice $invoice): RedirectResponse
+    {
+        return $this->settleInvoice($invoice, 'wallet');
+    }
+
+    /**
+     * تسویه فاکتور؛ $method برابر manual (تسویه دستی) یا wallet (کسر از کیف پول مشتری) است.
+     * کل عملیات (کسر موجودی انبار + کسر کیف پول + تغییر وضعیت) در یک تراکنش دیتابیس انجام می‌شود.
+     */
+    protected function settleInvoice(Invoice $invoice, string $method): RedirectResponse
+    {
         $alreadyPaid = false;
 
         try {
-            DB::transaction(function () use ($invoice, &$alreadyPaid) {
+            DB::transaction(function () use ($invoice, $method, &$alreadyPaid) {
                 $invoice = Invoice::query()
                     ->lockForUpdate()
                     ->findOrFail($invoice->id);
@@ -90,7 +109,11 @@ class InvoiceController extends Controller
                     }
                 }
 
-                $invoice->update(['status' => 'paid']);
+                if ($method === 'wallet') {
+                    $this->walletService->payInvoice($invoice, auth()->id());
+                }
+
+                $invoice->update(['status' => 'paid', 'payment_method' => $method]);
 
                 Order::query()
                     ->where('invoice_id', $invoice->id)
@@ -101,12 +124,17 @@ class InvoiceController extends Controller
             $error = collect($exception->errors())->flatten()->first();
 
             return redirect()->route('dashboard')
-                ->with('error', $error ?: 'خطا در بروزرسانی موجودی آیتم‌های کافه.');
+                ->with('error', $error ?: 'خطا در پرداخت فاکتور.');
         }
 
         if ($alreadyPaid) {
             return redirect()->route('dashboard')
                 ->with('success', 'این فاکتور قبلاً پرداخت شده است.');
+        }
+
+        if ($method === 'wallet') {
+            return redirect()->route('dashboard')
+                ->with('success', 'فاکتور از کیف پول مشتری پرداخت شد.');
         }
 
         return redirect()->route('dashboard')
@@ -115,7 +143,14 @@ class InvoiceController extends Controller
 
     public function destroy(Invoice $invoice): RedirectResponse
     {
-        $invoice->delete();
+        DB::transaction(function () use ($invoice) {
+            // اگر فاکتور از کیف پول پرداخت شده بود، مبلغ به کیف پول مشتری برگردانده می‌شود.
+            if ($invoice->payment_method === 'wallet') {
+                $this->walletService->refundInvoice($invoice, auth()->id());
+            }
+
+            $invoice->delete();
+        });
 
         return redirect()->route('dashboard')
             ->with('success', 'فاکتور با موفقیت حذف شد.');

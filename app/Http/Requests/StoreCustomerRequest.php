@@ -27,6 +27,22 @@ class StoreCustomerRequest extends FormRequest
             'phone' => 'required|string|unique:customers,phone',
             'national_id' => ['required', 'digits:10', Rule::unique('customers', 'national_id')],
             'email' => 'nullable|email',
+            'credit_limit' => 'nullable|integer|min:0|max:100000000000',
+        ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'credit_limit' => 'سقف اعتبار',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'credit_limit.integer' => 'سقف اعتبار باید یک عدد صحیح (به تومان) باشد.',
+            'credit_limit.min' => 'سقف اعتبار نمی‌تواند منفی باشد.',
         ];
     }
 }

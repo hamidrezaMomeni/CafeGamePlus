@@ -1719,6 +1719,16 @@
     </div>
 </template>
 
+<style>
+    .customer-select-search {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    .customer-select-search::placeholder {
+        color: var(--muted, #888);
+    }
+</style>
+
 @if ($user?->hasPermission('customers.manage'))
 <script>
     (function () {
@@ -1758,6 +1768,57 @@
     })();
 </script>
 @endif
+
+<script>
+    (function () {
+        const sessionModals = [
+            'modal-console-session',
+            'modal-table-session',
+            'modal-board-game-session'
+        ];
+
+        sessionModals.forEach((modalId) => {
+            const modal = document.getElementById(modalId);
+            const select = modal?.querySelector('select[name="customer_id"]');
+            if (!select) return;
+
+            const search = document.createElement('input');
+            search.type = 'search';
+            search.className = 'customer-select-search';
+            search.placeholder = 'جستجوی مشتری بر اساس نام یا شماره موبایل...';
+            search.autocomplete = 'off';
+            search.setAttribute('aria-label', 'جستجوی مشتری بر اساس نام یا شماره موبایل');
+
+            select.parentNode.insertBefore(search, select);
+
+            const options = Array.from(select.options).map((option) => ({
+                element: option,
+                text: option.textContent.toLocaleLowerCase('fa').trim(),
+            }));
+
+            search.addEventListener('input', () => {
+                const query = search.value.trim().toLocaleLowerCase('fa');
+
+                options.forEach(({ element, text }) => {
+                    // Keep the guest option available regardless of the search text.
+                    element.hidden = element.value !== '' && query !== '' && !text.includes(query);
+                });
+
+                const selectedOption = select.selectedOptions[0];
+                if (selectedOption?.hidden) {
+                    select.value = '';
+                }
+            });
+
+            select.addEventListener('change', () => {
+                search.value = '';
+                options.forEach(({ element }) => {
+                    element.hidden = false;
+                });
+            });
+        });
+    })();
+</script>
 
 <script>
     window.dashboardState = {

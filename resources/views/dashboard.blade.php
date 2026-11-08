@@ -1720,102 +1720,263 @@
 </template>
 
 <style>
-    .customer-select-search {
+    .customer-select2 {
+        position: relative;
         width: 100%;
-        margin-bottom: 8px;
+        direction: rtl;
     }
-    .customer-select-search::placeholder {
+
+    .customer-select2__selection {
+        width: 100%;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 9px 12px;
+        border: 1px solid var(--outline, #d1d5db);
+        border-radius: 10px;
+        background: var(--card, #fff);
+        color: var(--ink, #222);
+        text-align: right;
+        cursor: pointer;
+        font: inherit;
+    }
+
+    .customer-select2__selection:focus,
+    .customer-select2.is-open .customer-select2__selection {
+        outline: none;
+        border-color: var(--primary, #6478e8);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary, #6478e8) 16%, transparent);
+    }
+
+    .customer-select2__selection-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .customer-select2__arrow {
+        flex: 0 0 auto;
         color: var(--muted, #888);
+        font-size: 12px;
     }
+
+    .customer-select2__dropdown {
+        display: none;
+        position: absolute;
+        z-index: 2000;
+        top: calc(100% + 5px);
+        right: 0;
+        left: 0;
+        padding: 8px;
+        border: 1px solid var(--outline, #d1d5db);
+        border-radius: 10px;
+        background: var(--card, #fff);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, .16);
+    }
+
+    .customer-select2.is-open .customer-select2__dropdown { display: block; }
+
+    .customer-select2__search {
+        display: block;
+        width: 100%;
+        min-height: 38px;
+        margin: 0 0 7px;
+        padding: 8px 10px;
+        border: 1px solid var(--outline, #d1d5db);
+        border-radius: 7px;
+        background: var(--bg, var(--card, #fff));
+        color: inherit;
+        font: inherit;
+        outline: none;
+    }
+
+    .customer-select2__search:focus { border-color: var(--primary, #6478e8); }
+
+    .customer-select2__results {
+        max-height: 220px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    .customer-select2__option {
+        display: block;
+        width: 100%;
+        padding: 9px 10px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+        text-align: right;
+        font: inherit;
+        cursor: pointer;
+    }
+
+    .customer-select2__option:hover,
+    .customer-select2__option.is-highlighted {
+        background: var(--bg-alt, rgba(100, 120, 232, .12));
+    }
+
+    .customer-select2__option[aria-selected="true"] { font-weight: 700; }
+    .customer-select2__empty { padding: 12px 10px; color: var(--muted, #888); text-align: center; }
+
+    .customer-select2-native { display: none !important; }
 </style>
 
-@if ($user?->hasPermission('customers.manage'))
 <script>
     (function () {
-        const input = document.getElementById('customerSearch');
-        if (!input) return;
-        const body = document.getElementById('customersTableBody');
-        const pagination = document.getElementById('customersPagination');
-        const status = document.getElementById('customerSearchStatus');
-        const url = @json(route('customers.search'));
-        let timer = null;
-        let controller = null;
-
-        const run = async () => {
-            if (controller) controller.abort();
-            controller = new AbortController();
-            status.textContent = 'در حال جستجو...';
-            try {
-                const response = await fetch(url + '?q=' + encodeURIComponent(input.value.trim()), {
-                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                    signal: controller.signal,
-                });
-                if (!response.ok) throw new Error('bad status');
-                const data = await response.json();
-                body.innerHTML = data.rows;
-                pagination.innerHTML = data.pagination;
-                status.textContent = input.value.trim() ? `${data.total} مشتری یافت شد` : '';
-            } catch (error) {
-                if (error.name === 'AbortError') return;
-                status.textContent = 'خطا در جستجو. دوباره تلاش کنید یا صفحه را رفرش کنید.';
-            }
-        };
-
-        input.addEventListener('input', () => {
-            clearTimeout(timer);
-            timer = setTimeout(run, 300);
-        });
-    })();
-</script>
-@endif
-
-<script>
-    (function () {
-        const sessionModals = [
+        const modalIds = [
             'modal-console-session',
             'modal-table-session',
             'modal-board-game-session'
         ];
 
-        sessionModals.forEach((modalId) => {
-            const modal = document.getElementById(modalId);
-            const select = modal?.querySelector('select[name="customer_id"]');
-            if (!select) return;
+        const normalize = (value) => String(value ?? '')
+            .toLocaleLowerCase('fa')
+            .replace(/[\u200c\u200f\u0640]/g, ' ')
+            .replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+            .replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+            .replace(/\s+/g, ' ')
+            .trim();
 
-            const search = document.createElement('input');
-            search.type = 'search';
-            search.className = 'customer-select-search';
-            search.placeholder = 'جستجوی مشتری بر اساس نام یا شماره موبایل...';
-            search.autocomplete = 'off';
-            search.setAttribute('aria-label', 'جستجوی مشتری بر اساس نام یا شماره موبایل');
+        function initializeCustomerSelect(select) {
+            if (select.dataset.select2Initialized === 'true') return;
+            select.dataset.select2Initialized = 'true';
+            select.classList.add('customer-select2-native');
 
-            select.parentNode.insertBefore(search, select);
+            const wrapper = document.createElement('div');
+            wrapper.className = 'customer-select2';
+            wrapper.innerHTML = `
+                <button type="button" class="customer-select2__selection" aria-haspopup="listbox" aria-expanded="false">
+                    <span class="customer-select2__selection-text"></span>
+                    <span class="customer-select2__arrow">▾</span>
+                </button>
+                <div class="customer-select2__dropdown">
+                    <input type="search" class="customer-select2__search" placeholder="جستجو بر اساس نام یا شماره موبایل..." autocomplete="off" aria-label="جستجوی مشتری">
+                    <div class="customer-select2__results" role="listbox"></div>
+                </div>`;
 
-            const options = Array.from(select.options).map((option) => ({
-                element: option,
-                text: option.textContent.toLocaleLowerCase('fa').trim(),
+            select.parentNode.insertBefore(wrapper, select);
+            wrapper.appendChild(select);
+
+            const selection = wrapper.querySelector('.customer-select2__selection');
+            const selectionText = wrapper.querySelector('.customer-select2__selection-text');
+            const dropdown = wrapper.querySelector('.customer-select2__dropdown');
+            const search = wrapper.querySelector('.customer-select2__search');
+            const results = wrapper.querySelector('.customer-select2__results');
+            let visibleOptions = [];
+            let highlightedIndex = -1;
+
+            const getOptions = () => Array.from(select.options).map(option => ({
+                option,
+                label: option.textContent.trim(),
+                searchText: normalize(option.textContent)
             }));
 
-            search.addEventListener('input', () => {
-                const query = search.value.trim().toLocaleLowerCase('fa');
+            const updateSelection = () => {
+                const selected = select.selectedOptions[0];
+                selectionText.textContent = selected ? selected.textContent.trim() : 'انتخاب مشتری';
+                selectionText.title = selectionText.textContent;
+            };
 
-                options.forEach(({ element, text }) => {
-                    // Keep the guest option available regardless of the search text.
-                    element.hidden = element.value !== '' && query !== '' && !text.includes(query);
+            const close = () => {
+                wrapper.classList.remove('is-open');
+                selection.setAttribute('aria-expanded', 'false');
+            };
+
+            const highlight = (index) => {
+                highlightedIndex = Math.max(0, Math.min(index, visibleOptions.length - 1));
+                results.querySelectorAll('.customer-select2__option').forEach((item, i) => {
+                    item.classList.toggle('is-highlighted', i === highlightedIndex);
                 });
+                results.querySelector('.is-highlighted')?.scrollIntoView({ block: 'nearest' });
+            };
 
-                const selectedOption = select.selectedOptions[0];
-                if (selectedOption?.hidden) {
-                    select.value = '';
+            const render = () => {
+                const query = normalize(search.value);
+                visibleOptions = getOptions().filter(({ option, searchText }) =>
+                    !option.disabled && (!query || option.value === '' || searchText.includes(query))
+                );
+                results.replaceChildren();
+                highlightedIndex = -1;
+
+                if (!visibleOptions.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'customer-select2__empty';
+                    empty.textContent = 'مشتری‌ای با این مشخصات پیدا نشد';
+                    results.appendChild(empty);
+                    return;
+                }
+
+                visibleOptions.forEach(({ option, label }, index) => {
+                    const item = document.createElement('button');
+                    item.type = 'button';
+                    item.className = 'customer-select2__option';
+                    item.setAttribute('role', 'option');
+                    item.setAttribute('aria-selected', option.selected ? 'true' : 'false');
+                    item.textContent = label;
+                    item.addEventListener('mouseenter', () => highlight(index));
+                    item.addEventListener('click', () => {
+                        select.value = option.value;
+                        select.dispatchEvent(new Event('change', { bubbles: true }));
+                        updateSelection();
+                        close();
+                        selection.focus();
+                    });
+                    results.appendChild(item);
+                });
+            };
+
+            const open = () => {
+                // Close any other customer dropdown first.
+                document.querySelectorAll('.customer-select2.is-open').forEach(item => {
+                    if (item !== wrapper) {
+                        item.classList.remove('is-open');
+                        item.querySelector('.customer-select2__selection')?.setAttribute('aria-expanded', 'false');
+                    }
+                });
+                wrapper.classList.add('is-open');
+                selection.setAttribute('aria-expanded', 'true');
+                search.value = '';
+                render();
+                search.focus();
+            };
+
+            selection.addEventListener('click', () => wrapper.classList.contains('is-open') ? close() : open());
+            search.addEventListener('input', render);
+            search.addEventListener('keydown', event => {
+                if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    highlight(highlightedIndex + 1);
+                } else if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    highlight(highlightedIndex < 0 ? visibleOptions.length - 1 : highlightedIndex - 1);
+                } else if (event.key === 'Enter' && highlightedIndex >= 0 && visibleOptions[highlightedIndex]) {
+                    event.preventDefault();
+                    visibleOptions[highlightedIndex].option.selected = true;
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    updateSelection();
+                    close();
+                    selection.focus();
+                } else if (event.key === 'Escape') {
+                    close();
+                    selection.focus();
                 }
             });
 
-            select.addEventListener('change', () => {
-                search.value = '';
-                options.forEach(({ element }) => {
-                    element.hidden = false;
-                });
+            document.addEventListener('click', event => {
+                if (!wrapper.contains(event.target)) close();
             });
+            select.addEventListener('change', updateSelection);
+            select.form?.addEventListener('reset', () => setTimeout(updateSelection));
+            updateSelection();
+        }
+
+        modalIds.forEach(modalId => {
+            const modal = document.getElementById(modalId);
+            const select = modal?.querySelector('select[name="customer_id"]');
+            if (select) initializeCustomerSelect(select);
         });
     })();
 </script>
